@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParkFlow | Enterprise Vehicle Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #38bdf8;
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #6366f1;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); display: flex; min-height: 100vh; overflow-x: hidden; }
+        nav { width: 260px; background: var(--card-bg); border-right: 1px solid #334155; display: flex; flex-direction: column; padding: 2rem 1rem; position: fixed; height: 100vh; }
+        .logo { font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 10px; }
+        .nav-links { list-style: none; }
+        .nav-links li { padding: 12px 15px; margin-bottom: 8px; cursor: pointer; border-radius: 8px; transition: 0.3s; color: var(--text-muted); font-weight: 500; }
+        .nav-links li:hover, .nav-links li.active { background: var(--accent); color: white; }
+        main { margin-left: 260px; flex-grow: 1; padding: 2rem; }
+        .view { display: none; animation: fadeIn 0.4s ease; }
+        .view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--card-bg); padding: 1.5rem; border-radius: 12px; border-bottom: 4px solid var(--primary); }
+        .stat-card h3 { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; margin-bottom: 8px; }
+        .stat-card p { font-size: 1.8rem; font-weight: 700; }
+        .grid-layout { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 15px; background: var(--card-bg); padding: 2rem; border-radius: 12px; }
+        .slot { height: 80px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; font-size: 0.9rem; transition: 0.3s; border: 2px dashed #475569; cursor: pointer; }
+        .slot.available { background: rgba(16, 185, 129, 0.1); color: var(--success); border: 2px solid var(--success); }
+        .slot.occupied { background: var(--danger); color: white; border: 2px solid var(--danger); }
+        .form-container { max-width: 650px; background: var(--card-bg); padding: 2.5rem; border-radius: 12px; margin: 0 auto; }
+        .form-group { margin-bottom: 1.2rem; }
+        label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.9rem; }
+        input, select, textarea { width: 100%; padding: 12px; background: #0f172a; border: 1px solid #334155; color: white; border-radius: 6px; outline: none; }
+        button { width: 100%; padding: 12px; background: var(--primary); border: none; color: var(--bg-dark); font-weight: 700; border-radius: 6px; cursor: pointer; transition: 0.3s; }
+        table { width: 100%; border-collapse: collapse; background: var(--card-bg); border-radius: 12px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #334155; }
+        th { background: #2d3748; color: var(--primary); }
+        #details-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center; }
+        .modal-content { background: var(--card-bg); padding: 2rem; border-radius: 15px; width: 400px; border: 1px solid var(--primary); }
+        #receipt-area { background: white; color: black; padding: 2rem; border-radius: 8px; max-width: 450px; margin: 20px auto; display: none; border: 2px dashed #000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #receipt-area h2 { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 15px; text-align: center; font-weight: 800; }
+        #receipt-area p { margin-bottom: 8px; font-size: 0.9rem; display: flex; justify-content: space-between; }
+        #receipt-area .total-row { border-top: 2px solid #000; margin-top: 15px; padding-top: 10px; font-size: 1.2rem; font-weight: bold; }
+        #login-overlay { position: fixed; inset: 0; background: var(--bg-dark); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+    <div id="login-overlay">
+        <div class="form-container">
+            <h2 style="margin-bottom: 1.5rem; text-align: center;">System Login</h2>
+            <div class="form-group"><label>Username</label><input type="text" id="username" placeholder="admin / attendant"></div>
+            <div class="form-group"><label>Password</label><input type="password" id="password" value="1234"></div>
+            <button onclick="handleLogin()">Login to Dashboard</button>
+        </div>
+    </div>
+
+    <nav id="sidebar" style="display: none;">
+        <div class="logo">🚗 ParkFlow </div>
+        <ul class="nav-links">
+            <li class="active" onclick="showView('dashboard')">📊 Dashboard</li>
+            <li onclick="showView('entry')">➕ Vehicle Entry</li>
+            <li onclick="showView('exit')">🚪 Vehicle Exit</li>
+            <li onclick="showView('slots')">🅿️ Parking Grid</li>
+            <li class="admin-only" onclick="showView('reports')">📄 Reports</li>
+            <li onclick="location.reload()">🔒 Logout</li>
+        </ul>
+        <div style="margin-top: auto; font-size: 0.8rem; color: var(--text-muted);" id="live-clock"></div>
+    </nav>
+
+    <main id="main-content" style="display: none;">
+        <div id="dashboard" class="view active">
+            <h2 style="margin-bottom: 1.5rem;">System Overview</h2>
+            <div class="stats-grid">
+                <div class="stat-card"><h3>Total Records</h3><p id="stat-total">0</p></div>
+                <div class="stat-card"><h3>Available</h3><p id="stat-avail">50</p></div>
+                <div class="stat-card"><h3>Occupied</h3><p id="stat-occ">0</p></div>
+                <div class="stat-card" style="border-color: var(--success);"><h3>Revenue</h3><p>₹<span id="stat-revenue">0</span></p></div>
+            </div>
+            <div class="grid-layout" id="dashboard-slots-preview"></div>
+        </div>
+
+        <div id="entry" class="view">
+            <div class="form-container">
+                <h2 style="margin-bottom: 1.5rem;">New Customer Entry</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group"><label>Customer Name</label><input type="text" id="cust-name"></div>
+                    <div class="form-group"><label>Mobile Number</label><input type="number" id="cust-mobile"></div>
+                </div>
+                <div class="form-group"><label>Address</label><textarea id="cust-address" rows="2"></textarea></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group"><label>Vehicle Number</label><input type="text" id="veh-num" placeholder="ABC-1234"></div>
+                    <div class="form-group">
+                        <label>Type</label>
+                        <select id="veh-type">
+                            <option value="Bike">Bike (₹10/hr)</option>
+                            <option value="Car" selected>Car (₹20/hr)</option>
+                            <option value="Other">Other (₹30/hr)</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="processEntry()">Assign Slot & Generate ID</button>
+            </div>
+        </div>
+
+        <div id="exit" class="view">
+            <div class="form-container">
+                <h2 style="margin-bottom: 1.5rem;">Vehicle Exit & Payment</h2>
+                <div class="form-group">
+                    <label>Search Vehicle Number</label>
+                    <input type="text" id="exit-veh-num" oninput="searchVehicleForExit()" placeholder="Type vehicle number...">
+                </div>
+                <div id="exit-details" style="display: none; border: 1px solid var(--primary); padding: 15px; border-radius: 8px; margin-bottom: 15px; background: rgba(56,189,248,0.05);"></div>
+                <button id="btn-pay" style="display: none;" onclick="processExit()">Finalize Payment & Generate Bill</button>
+            </div>
+            <div id="receipt-area"></div>
+        </div>
+
+        <div id="slots" class="view">
+            <h2 style="margin-bottom: 1.5rem;">Interactive Parking Grid</h2>
+            <div class="grid-layout" id="full-slots-grid"></div>
+        </div>
+
+        <div id="reports" class="view">
+            <h2 style="margin-bottom: 1rem;">Transaction History</h2>
+            <table id="reports-table">
+                <thead><tr><th>Txn ID</th><th>Name</th><th>Vehicle</th><th>Slot</th><th>Duration</th><th>Amount</th></tr></thead>
+                <tbody id="report-body"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="details-modal">
+        <div class="modal-content">
+            <h3 id="m-slot-id" style="color:var(--primary); margin-bottom:15px;">Slot Details</h3>
+            <p><strong>Cust ID:</strong> <span id="m-cust-id"></span></p>
+            <p><strong>Name:</strong> <span id="m-name"></span></p>
+            <p><strong>Mobile:</strong> <span id="m-mobile"></span></p>
+            <p><strong>Address:</strong> <span id="m-address"></span></p>
+            <p><strong>Vehicle:</strong> <span id="m-veh"></span></p>
+            <p><strong>Entry:</strong> <span id="m-entry"></span></p>
+            <button onclick="closeModal()" style="margin-top: 15px; background: var(--text-muted); color: white;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let slots = JSON.parse(localStorage.getItem('parking_slots')) || Array.from({ length: 50 }, (_, i) => ({ id: `A${i+1}`, status: 'available', vehicle: null }));
+        let history = JSON.parse(localStorage.getItem('parking_history')) || [];
+        let totalRevenue = parseFloat(localStorage.getItem('parking_revenue')) || 0;
+        let lastIdNum = parseInt(localStorage.getItem('parking_last_id')) || 1000;
+
+        function handleLogin() {
+            const user = document.getElementById('username').value.toLowerCase();
+            const pass = document.getElementById('password').value;
+            if((user === 'admin' || user === 'attendant') && pass === '1234') {
+                document.getElementById('login-overlay').style.display = 'none';
+                document.getElementById('sidebar').style.display = 'flex';
+                document.getElementById('main-content').style.display = 'block';
+                if(user === 'attendant') document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+                updateUI();
+            } else { alert("Wrong Credentials!"); }
+        }
+
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav-links li').forEach(l => l.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+            event.currentTarget.classList.add('active');
+            document.getElementById('receipt-area').style.display = 'none';
+            updateUI();
+        }
+
+        function updateUI() {
+            const occupied = slots.filter(s => s.status === 'occupied').length;
+            document.getElementById('stat-total').innerText = history.length + occupied;
+            document.getElementById('stat-avail').innerText = slots.length - occupied;
+            document.getElementById('stat-occ').innerText = occupied;
+            document.getElementById('stat-revenue').innerText = totalRevenue.toFixed(2);
+
+            const render = (containerId) => {
+                const container = document.getElementById(containerId);
+                container.innerHTML = '';
+                slots.forEach(slot => {
+                    const div = document.createElement('div');
+                    div.className = `slot ${slot.status}`;
+                    div.innerHTML = `<span>${slot.id}</span>`;
+                    div.onclick = () => showDetails(slot);
+                    container.appendChild(div);
+                });
+            };
+            render('dashboard-slots-preview');
+            render('full-slots-grid');
+
+            document.getElementById('report-body').innerHTML = history.map(h => `
+                <tr><td>${h.txnId}</td><td>${h.name}</td><td>${h.vehNum}</td><td>${h.slot}</td><td>${h.duration} hr</td><td>₹${h.amount}</td></tr>
+            `).join('');
+            saveData();
+        }
+
+        function processEntry() {
+            const name = document.getElementById('cust-name').value;
+            const mobile = document.getElementById('cust-mobile').value;
+            const address = document.getElementById('cust-address').value;
+            const vehNum = document.getElementById('veh-num').value.toUpperCase();
+            const type = document.getElementById('veh-type').value;
+
+            if(!name || !mobile || !vehNum) return alert("Please fill Name, Mobile, and Vehicle Number!");
+            const slot = slots.find(s => s.status === 'available');
+            if(!slot) return alert("Parking Full!");
+
+            lastIdNum++;
+            const newId = `CID-${lastIdNum}`;
+            slot.status = 'occupied';
+            slot.vehicle = { custId: newId, name, mobile, address, vehNum, type, entryTime: new Date().toISOString() };
+
+            fetch("http://127.0.0.1:5000/add_entry", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ customerID: newId, name, mobile, address, vehNum, type, slot: slot.id })
+            }).then(() => {
+                alert(`Assigned: ${slot.id} for Customer ${newId}`);
+                ['cust-name','cust-mobile','cust-address','veh-num'].forEach(id => document.getElementById(id).value = '');
+                showView('dashboard');
+            }).catch(err => console.error("API Error:", err));
+        }
+
+        function searchVehicleForExit() {
+            const val = document.getElementById('exit-veh-num').value.toUpperCase();
+            const slot = slots.find(s => s.vehicle && s.vehicle.vehNum.toUpperCase() === val);
+            const div = document.getElementById('exit-details');
+            const btn = document.getElementById('btn-pay');
+
+            if(slot) {
+                const hours = Math.ceil((new Date() - new Date(slot.vehicle.entryTime)) / 3600000) || 1;
+                const rates = { Bike: 10, Car: 20, Other: 30 };
+                const total = hours * rates[slot.vehicle.type];
+                div.style.display = 'block'; btn.style.display = 'block';
+                div.innerHTML = `<h4>Owner: ${slot.vehicle.name}</h4><p>ID: ${slot.vehicle.custId}</p><p>Total Duration: ${hours} Hour(s)</p><h3>To Pay: ₹${total}</h3>`;
+                div.dataset.amount = total; div.dataset.slotId = slot.id; div.dataset.hours = hours;
+            } else { div.style.display = 'none'; btn.style.display = 'none'; }
+        }
+
+        function processExit() {
+            const div = document.getElementById('exit-details');
+            const slot = slots.find(s => s.id === div.dataset.slotId);
+            const transactionId = 'TXN-' + Math.floor(100000 + Math.random() * 900000);
+            
+            const record = {
+                txnId: transactionId,
+                custId: slot.vehicle.custId,
+                name: slot.vehicle.name,
+                mobile: slot.vehicle.mobile,
+                vehNum: slot.vehicle.vehNum,
+                type: slot.vehicle.type,
+                slot: slot.id,
+                entry: new Date(slot.vehicle.entryTime).toLocaleString(),
+                exit: new Date().toLocaleString(),
+                duration: div.dataset.hours,
+                amount: parseFloat(div.dataset.amount)
+            };
+
+            fetch("http://127.0.0.1:5000/exit_vehicle", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ vehNum: record.vehNum, amount: record.amount, txnId: record.txnId })
+            }).then(res => res.json()).then(() => {
+                history.push(record);
+                totalRevenue += record.amount;
+                slot.status = 'available';
+                slot.vehicle = null;
+                
+                const receipt = document.getElementById('receipt-area');
+                receipt.style.display = 'block';
+                receipt.innerHTML = `
+                    <h2>PARKFLOW INVOICE</h2>
+                    <p><span>Transaction ID:</span> <b>${record.txnId}</b></p>
+                    <p><span>Customer ID:</span> <b>${record.custId}</b></p>
+                    <p><span>Name:</span> <b>${record.name}</b></p>
+                    <p><span>Mobile:</span> <b>${record.mobile}</b></p>
+                    <p><span>Vehicle:</span> <b>${record.vehNum} (${record.type})</b></p>
+                    <p><span>Parking Slot:</span> <b>${record.slot}</b></p>
+                    <p><span>Entry Time:</span> <b>${record.entry}</b></p>
+                    <p><span>Exit Time:</span> <b>${record.exit}</b></p>
+                    <p><span>Total Duration:</span> <b>${record.duration} Hour(s)</b></p>
+                    <div class="total-row"><span>Grand Total:</span> <span>₹${record.amount}</span></div>
+                    <br><button onclick="window.print()" style="background:black; color:white;">Print Bill</button>
+                `;
+                document.getElementById('exit-veh-num').value = '';
+                div.style.display = 'none';
+                document.getElementById('btn-pay').style.display = 'none';
+                updateUI();
+            }).catch(err => alert("API Connection Error. Verify Flask is running."));
+        }
+
+        function showDetails(slot) {
+            if(slot.status === 'available') return;
+            const v = slot.vehicle;
+            document.getElementById('m-slot-id').innerText = `Slot: ${slot.id}`;
+            document.getElementById('m-cust-id').innerText = v.custId;
+            document.getElementById('m-name').innerText = v.name;
+            document.getElementById('m-mobile').innerText = v.mobile;
+            document.getElementById('m-address').innerText = v.address || "N/A";
+            document.getElementById('m-veh').innerText = `${v.vehNum} (${v.type})`;
+            document.getElementById('m-entry').innerText = new Date(v.entryTime).toLocaleString();
+            document.getElementById('details-modal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('details-modal').style.display = 'none'; }
+        function saveData() {
+            localStorage.setItem('parking_slots', JSON.stringify(slots));
+            localStorage.setItem('parking_history', JSON.stringify(history));
+            localStorage.setItem('parking_revenue', totalRevenue);
+            localStorage.setItem('parking_last_id', lastIdNum);
+        }
+        setInterval(() => { document.getElementById('live-clock').innerText = new Date().toLocaleString(); }, 1000);
+    </script>
+</body>
+</html>
