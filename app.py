@@ -11,7 +11,7 @@ CORS(app)
 db_config = {
     "host": "localhost",
     "user": "root",
-    "password": "Rivan@21",
+    "password": "*****", #Enter password
     "database": "parking_system"
 }
 
